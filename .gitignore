@@ -1,0 +1,26 @@
+# Simulation outputs (compiled binaries and waveforms)
+sim/*.vvp
+sim/*.vcd
+tb/sim/*.vcd
+
+# Keep example files tracked:
+# - results/*.png (original, encrypted, decrypted demo images)
+# - src/input_small.hex, small_encrypted.hex, small_decrypted.hex (small test vectors)
+# - data/input_second.* (sample input assets)
+
+# Large user input images (not needed for examples)
+data/input.jpg
+data/*.jpeg
+
+# Python cache
+__pycache__/
+*.pyc
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# IDE/Editor
+.vscode/
+*.swp
+*~
