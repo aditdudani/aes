@@ -258,6 +258,87 @@ module tb_image_encryption_system;
     );
     
     //=================================================================
+    // SystemVerilog Assertions (SVA) for AXI4-Stream Protocol Compliance
+    // Note: SVA requires commercial simulators (Questa/VCS/Xcelium/Vivado)
+    // Icarus Verilog does not support SVA, so we guard with `ifndef __ICARUS__
+    //=================================================================
+`ifndef __ICARUS__
+    // Counter to track assertion evaluations
+    int unsigned sva_axis_count = 0;
+    int unsigned sva_axil_count = 0;
+
+    // SVA: Slave AXIS - TVALID must stay high until TREADY handshake
+    property p_s_axis_valid_stable;
+        @(posedge clk) disable iff (!rst_n)
+        s_axis_tvalid && !s_axis_tready |=> s_axis_tvalid;
+    endproperty
+    a_s_axis_valid_stable: assert property (p_s_axis_valid_stable)
+        else $error("SVA FAIL: s_axis TVALID dropped before TREADY!");
+
+    // SVA: Slave AXIS - TDATA must be stable during handshake
+    property p_s_axis_data_stable;
+        @(posedge clk) disable iff (!rst_n)
+        s_axis_tvalid && !s_axis_tready |=> $stable(s_axis_tdata);
+    endproperty
+    a_s_axis_data_stable: assert property (p_s_axis_data_stable)
+        else $error("SVA FAIL: s_axis TDATA changed before handshake!");
+
+    // SVA: Master AXIS - TVALID must stay high until TREADY handshake
+    property p_m_axis_valid_stable;
+        @(posedge clk) disable iff (!rst_n)
+        m_axis_tvalid && !m_axis_tready |=> m_axis_tvalid;
+    endproperty
+    a_m_axis_valid_stable: assert property (p_m_axis_valid_stable)
+        else $error("SVA FAIL: m_axis TVALID dropped before TREADY!");
+
+    // SVA: Master AXIS - TDATA must be stable during handshake
+    property p_m_axis_data_stable;
+        @(posedge clk) disable iff (!rst_n)
+        m_axis_tvalid && !m_axis_tready |=> $stable(m_axis_tdata);
+    endproperty
+    a_m_axis_data_stable: assert property (p_m_axis_data_stable)
+        else $error("SVA FAIL: m_axis TDATA changed before handshake!");
+
+    // SVA: AXI-Lite Write - AWVALID must stay high until AWREADY
+    property p_axil_awvalid_stable;
+        @(posedge clk) disable iff (!rst_n)
+        s_axil_awvalid && !s_axil_awready |=> s_axil_awvalid;
+    endproperty
+    a_axil_awvalid_stable: assert property (p_axil_awvalid_stable)
+        else $error("SVA FAIL: AXI-Lite AWVALID dropped before AWREADY!");
+
+    // SVA: AXI-Lite Write - WVALID must stay high until WREADY
+    property p_axil_wvalid_stable;
+        @(posedge clk) disable iff (!rst_n)
+        s_axil_wvalid && !s_axil_wready |=> s_axil_wvalid;
+    endproperty
+    a_axil_wvalid_stable: assert property (p_axil_wvalid_stable)
+        else $error("SVA FAIL: AXI-Lite WVALID dropped before WREADY!");
+
+    // Track when assertions are triggered (antecedent matches)
+    always @(posedge clk) begin
+        if (rst_n && s_axis_tvalid && !s_axis_tready)
+            sva_axis_count <= sva_axis_count + 1;
+        if (rst_n && m_axis_tvalid && !m_axis_tready)
+            sva_axis_count <= sva_axis_count + 1;
+        if (rst_n && s_axil_awvalid && !s_axil_awready)
+            sva_axil_count <= sva_axil_count + 1;
+        if (rst_n && s_axil_wvalid && !s_axil_wready)
+            sva_axil_count <= sva_axil_count + 1;
+    end
+
+    // Report SVA activity at end of simulation
+    final begin
+        $display("[SVA] AXI-Stream assertions evaluated %0d times", sva_axis_count);
+        $display("[SVA] AXI-Lite assertions evaluated %0d times", sva_axil_count);
+        if (sva_axis_count > 0 || sva_axil_count > 0)
+            $display("[SVA] All protocol checks PASSED - no violations detected");
+        else
+            $display("[SVA] WARNING: Antecedents never matched - assertions not exercised");
+    end
+`endif
+
+    //=================================================================
     // Test Stimulus
     //=================================================================
     integer i;

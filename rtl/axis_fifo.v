@@ -2,7 +2,8 @@
 module axis_fifo #(
     parameter integer DATA_W = 128,
     parameter integer KEEP_W = DATA_W/8,
-    parameter integer DEPTH  = 512
+    parameter integer DEPTH  = 512,
+    parameter integer AW     = $clog2(DEPTH)
 )(
     input  wire                 clk,
     input  wire                 rst_n,
@@ -39,7 +40,7 @@ module axis_fifo #(
         end
     endfunction
 
-    localparam integer AW = clog2(DEPTH);
+    // AW is now a parameter - localparam removed
 
     reg [AW:0] wr_ptr, rd_ptr; // one extra bit for full/empty
 

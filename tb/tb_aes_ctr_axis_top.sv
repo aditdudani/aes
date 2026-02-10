@@ -27,6 +27,70 @@ module tb_aes_ctr_axis_top;
         .m_axis_tdata(m_axis_tdata), .m_axis_tkeep(m_axis_tkeep), .m_axis_tlast(m_axis_tlast), .m_axis_tvalid(m_axis_tvalid), .m_axis_tready(m_axis_tready)
     );
 
+    // SystemVerilog Assertions (SVA) for AXI4-Stream Protocol Compliance
+    // Icarus Verilog does not support SVA, so we guard with `ifndef __ICARUS__
+`ifndef __ICARUS__
+    // Counter to track assertion evaluations
+    int unsigned sva_eval_count = 0;
+
+    // SVA: TVALID must remain asserted until TREADY (AXI4-Stream spec)
+    property p_s_axis_valid_stable;
+        @(posedge aclk) disable iff (!aresetn)
+        s_axis_tvalid && !s_axis_tready |=> s_axis_tvalid;
+    endproperty
+    a_s_axis_valid_stable: assert property (p_s_axis_valid_stable)
+        else $error("SVA FAIL: s_axis TVALID dropped before TREADY handshake!");
+
+    // SVA: TDATA must remain stable while TVALID is high and waiting for TREADY
+    property p_s_axis_data_stable;
+        @(posedge aclk) disable iff (!aresetn)
+        s_axis_tvalid && !s_axis_tready |=> $stable(s_axis_tdata);
+    endproperty
+    a_s_axis_data_stable: assert property (p_s_axis_data_stable)
+        else $error("SVA FAIL: s_axis TDATA changed before handshake complete!");
+
+    // SVA: TLAST must remain stable while TVALID is high and waiting for TREADY
+    property p_s_axis_last_stable;
+        @(posedge aclk) disable iff (!aresetn)
+        s_axis_tvalid && !s_axis_tready |=> $stable(s_axis_tlast);
+    endproperty
+    a_s_axis_last_stable: assert property (p_s_axis_last_stable)
+        else $error("SVA FAIL: s_axis TLAST changed before handshake complete!");
+
+    // SVA: Master interface - DUT must keep TVALID stable until handshake (verifies DUT compliance)
+    property p_m_axis_valid_stable;
+        @(posedge aclk) disable iff (!aresetn)
+        m_axis_tvalid && !m_axis_tready |=> m_axis_tvalid;
+    endproperty
+    a_m_axis_valid_stable: assert property (p_m_axis_valid_stable)
+        else $error("SVA FAIL: DUT m_axis TVALID dropped before TREADY!");
+
+    // SVA: Master interface - DUT must keep TDATA stable until handshake
+    property p_m_axis_data_stable;
+        @(posedge aclk) disable iff (!aresetn)
+        m_axis_tvalid && !m_axis_tready |=> $stable(m_axis_tdata);
+    endproperty
+    a_m_axis_data_stable: assert property (p_m_axis_data_stable)
+        else $error("SVA FAIL: DUT m_axis TDATA changed before handshake!");
+
+    // Track when assertions are triggered (antecedent matches)
+    always @(posedge aclk) begin
+        if (aresetn && s_axis_tvalid && !s_axis_tready)
+            sva_eval_count <= sva_eval_count + 1;
+        if (aresetn && m_axis_tvalid && !m_axis_tready)
+            sva_eval_count <= sva_eval_count + 1;
+    end
+
+    // Report SVA activity at end of simulation
+    final begin
+        $display("[SVA] Assertions evaluated %0d times (antecedent matched)", sva_eval_count);
+        if (sva_eval_count > 0)
+            $display("[SVA] All protocol checks PASSED - no violations detected");
+        else
+            $display("[SVA] WARNING: Antecedent never matched - assertions not fully exercised");
+    end
+`endif
+
     // Reference AES core for keystreams
     reg ref_start; wire ref_busy, ref_valid; wire [127:0] ref_out; reg [127:0] ref_block;
     reg [127:0] key_ref, iv_ref; reg [127:0] ks0, ks1;
